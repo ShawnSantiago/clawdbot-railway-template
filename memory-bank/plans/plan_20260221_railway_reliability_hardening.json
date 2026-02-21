@@ -1,12 +1,43 @@
 {
   "plan_id": "plan_20260221_railway_reliability_hardening",
   "created_at_utc": "2026-02-21T02:30:44Z",
-  "status": "human_review_needed",
+  "status": "approved",
   "source_request": "Review proposed Railway reliability fixes and create an implementation plan.",
   "constraints": [
     "integrations.md is status: partial, so per policy each step confidence is capped at 6/10",
     "no unresolved context gaps are currently logged"
   ],
+  "baseline_metrics": {
+    "collection_window": "1-2 days on a Railway test deployment before merge",
+    "required_baselines": [
+      {
+        "metric": "HTTP 502 rate on public endpoint",
+        "source": "Railway logs + status code sampling",
+        "target_after_change": "no regression; target 20% reduction if current baseline > 0"
+      },
+      {
+        "metric": "healthcheck success rate (/setup/healthz and /healthz)",
+        "source": "synthetic probes every 1-5 minutes",
+        "target_after_change": ">= 99% success over baseline window"
+      },
+      {
+        "metric": "gateway startup readiness latency",
+        "source": "time from wrapper boot log to gateway reachable true",
+        "target_after_change": "no regression; p95 <= baseline + 10%"
+      }
+    ],
+    "measurement_tooling": [
+      "502 rate: parse Railway deployment/runtime logs for HTTP status codes by endpoint and time window.",
+      "healthchecks: synthetic probe (`/setup/healthz` and `/healthz`) every 60s with success-rate aggregation.",
+      "startup latency: compute diff between wrapper boot log and first `gateway.reachable=true` sample."
+    ],
+    "rollback_triggers": [
+      "HTTP 502 rate > 2% in any 1-hour post-change window.",
+      "Healthcheck success < 97% in any 1-hour post-change window.",
+      "Gateway startup p95 latency > baseline * 1.5."
+    ],
+    "rollout_gate": "Do not complete rollout until baseline is captured, post-change comparison is recorded in memory-bank/progress.md, and rollback triggers remain unbreached for 24h."
+  },
   "review_findings": [
     {
       "id": "F1",
@@ -127,16 +158,23 @@
         "src/setup-app.js"
       ],
       "changes": [
-        "Add server-side interactive auth-choice classifier and reject unsupported choices with HTTP 400.",
-        "Detect headless context using TTY checks and/or Railway env hints.",
-        "In setup UI, show warning text and disable Run button for blocked interactive choices."
+        "Add server-side auth classifier with explicit allowlist/blocklist derived from AUTH_GROUP values (instead of broad string matching).",
+        "Extract interactive/allowed choices into centralized constants generated from AUTH_GROUPS.",
+        "Inject validation in `buildOnboardArgs()` before onboarding subprocess execution.",
+        "Use explicit headless detection: `const isHeadless = !process.stdout.isTTY || !process.stdin.isTTY || Boolean(process.env.RAILWAY_ENVIRONMENT);`.",
+        "Add escape hatch `ALLOW_INTERACTIVE_AUTH=true` for controlled override.",
+        "Reject blocked interactive choices with HTTP 400 and deterministic remediation text.",
+        "In setup UI, show warning text and disable Run button when selected authChoice is blocked in headless mode."
       ],
       "validation": [
-        "Try submitting known interactive choices; verify deterministic rejection message.",
-        "Try API-key choices; verify setup path remains unaffected."
+        "Run classifier fixture checks that assert known interactive choices are blocked and API-key choices are allowed.",
+        "Verify every current AUTH_GROUP option is mapped to allow/block expectation via fixture table.",
+        "Submit blocked choices via API in headless mode and verify HTTP 400 + remediation text.",
+        "Submit allowed choices in headless mode and verify setup path remains unaffected.",
+        "Submit interactive choices in local TTY mode and verify behavior matches intended policy."
       ],
       "risk": "Over-broad classifier could block valid non-interactive auth choices.",
-      "mitigation": "Use explicit allow/block lists derived from known AUTH_GROUP option values and add unit-level tests for classifier behavior.",
+      "mitigation": "Keep classifier allow/block lists centralized, version-controlled, and validated against current AUTH_GROUP options.",
       "confidence_score": 5,
       "rationale": "Behavioral logic touches both frontend and backend; auth choice taxonomy can drift."
     },
@@ -150,6 +188,7 @@
       ],
       "changes": [
         "Prepend /data/bin to PATH in runtime image.",
+        "Ensure bootstrap guidance creates `/data/bin` before binary installation.",
         "Ensure subprocess env PATH includes /data/bin for wrapper-spawned commands.",
         "Add README section: Skills on Railway (works well vs needs binaries) plus bootstrap.sh binary install example."
       ],
@@ -164,22 +203,26 @@
     },
     {
       "step": "Step 5 - Improve build resilience defaults",
-      "description": "Reduce OOM risk with Node heap cap and add cache guidance for builds.",
+      "description": "Reduce build OOM risk with Railway builder guidance and separate runtime memory tuning from build-stage behavior.",
       "target_files": [
         "Dockerfile",
         "README.md"
       ],
       "changes": [
-        "Add NODE_OPTIONS default with conservative max-old-space-size value.",
-        "Document memory override recommendations for constrained Railway tiers.",
-        "Document optional BuildKit cache approach; gate implementation on Railway builder support."
+        "Do not treat runtime `NODE_OPTIONS` as a build-stage fix; document this distinction explicitly.",
+        "Document Railway builder memory tier recommendations for source builds (e.g., >=2GB).",
+        "Document how to identify build OOM signatures from Railway build logs.",
+        "Document alternative path: use pre-built OpenClaw package/image flow to avoid source-build pressure.",
+        "Keep runtime NODE_OPTIONS guidance optional and explicitly scoped to runtime processes.",
+        "Document optional BuildKit/pnpm cache guidance only when supported by Railway builder capabilities."
       ],
       "validation": [
-        "Build image on constrained environment and compare OOM incidence.",
+        "Run at least one constrained-tier build and one recommended-tier build; record OOM/pass outcomes.",
+        "Verify documentation states build memory and runtime memory are separate controls.",
         "Verify no regression in successful build timings on normal tier."
       ],
       "risk": "Heap cap can under-allocate and fail large builds.",
-      "mitigation": "Document override path and keep value configurable via Railway Variables.",
+      "mitigation": "Default to documentation-first guidance for build tier sizing; keep runtime heap cap optional and configurable.",
       "confidence_score": 4,
       "rationale": "Runtime/build memory behavior varies by Railway plan and builder capabilities."
     },
@@ -244,6 +287,26 @@
       "mitigation": "Document NODE_OPTIONS as configurable and provide recommended ranges."
     }
   ],
+  "rollout_phases": [
+    {
+      "phase": "Phase 1 (Low risk, immediate reliability)",
+      "items": [
+        "F1 port fallback + startup messaging",
+        "F2 health-check docs/semantics alignment",
+        "F4 /data/bin PATH improvements",
+        "F6 debug diagnostics improvements (additive-only hints)"
+      ],
+      "success_gate": "No baseline-regression on 502 rate and healthcheck success."
+    },
+    {
+      "phase": "Phase 2 (Design-sensitive, requires stricter validation)",
+      "items": [
+        "F3 interactive-auth guardrails",
+        "F5 build-memory guidance separation"
+      ],
+      "success_gate": "Classifier fixtures pass, rollout gate metrics recorded, and maintainer review accepted."
+    }
+  ],
   "rollback_strategy": [
     "Revert port fallback/default PATH changes if deploy routing or command resolution regressions appear.",
     "Gate interactive-auth rejection behind a feature flag if onboarding false-positives are reported.",
@@ -251,10 +314,10 @@
   ],
   "overall_confidence": {
     "score": 5,
-    "rationale": "Plan is grounded in current codebase, but integrations context is partial and automated reviewer execution is currently blocked (GAP-20260221-001)."
+    "rationale": "Plan is grounded in current codebase and reviewer-approved, with remaining confidence cap driven by partial integrations context."
   },
   "review_automation": {
-    "status": "human_review_needed",
+    "status": "approved",
     "attempts": [
       {
         "reviewer": "claude-plan-reviewer",
@@ -269,8 +332,51 @@
         "result": "fallback_failed",
         "timestamp_utc": "2026-02-21T02:42:33Z",
         "evidence": "audit/plan_reviews.log"
+      },
+      {
+        "reviewer": "claude-plan-reviewer",
+        "iteration": 3,
+        "result": "approved_with_revisions",
+        "timestamp_utc": "2026-02-21T03:48:36Z",
+        "evidence": "audit/plan_reviews.log"
+      },
+      {
+        "reviewer": "claude-plan-reviewer",
+        "iteration": 4,
+        "result": "approved_with_revisions",
+        "timestamp_utc": "2026-02-21T03:59:18Z",
+        "evidence": "audit/plan_reviews.log"
+      },
+      {
+        "reviewer": "claude-plan-reviewer",
+        "iteration": 5,
+        "result": "approved_with_revisions",
+        "timestamp_utc": "2026-02-21T04:02:30Z",
+        "evidence": "audit/plan_reviews.log"
+      },
+      {
+        "reviewer": "claude-plan-reviewer",
+        "iteration": 6,
+        "result": "approved",
+        "timestamp_utc": "2026-02-21T04:05:54Z",
+        "evidence": "audit/plan_reviews.log"
+      },
+      {
+        "reviewer": "claude-plan-reviewer",
+        "iteration": 7,
+        "result": "claude_failed",
+        "timestamp_utc": "2026-02-21T04:15:53Z",
+        "evidence": "audit/plan_reviews.log"
+      },
+      {
+        "reviewer": "claude-plan-reviewer",
+        "iteration": 8,
+        "result": "approved_with_revisions",
+        "timestamp_utc": "2026-02-21T04:17:08Z",
+        "evidence": "audit/plan_reviews.log"
       }
     ],
-    "gap_id": "GAP-20260221-001"
+    "latest_output_file": "audit/plan_review_outputs/plan_20260221_railway_reliability_hardening_round6_claude.json",
+    "revisions_pending": false
   }
 }

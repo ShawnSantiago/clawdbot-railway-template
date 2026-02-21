@@ -53,6 +53,7 @@ Then:
 - Discord: https://discord.com/invite/clawd
 
 If you’re filing a bug, please include the output of:
+- `/setup/healthz` (deploy health endpoint)
 - `/healthz`
 - `/setup/api/debug` (after authenticating to /setup)
 
@@ -77,6 +78,7 @@ Railway containers have an ephemeral filesystem. Only the mounted volume at `/da
 
 What persists cleanly today:
 - **Custom skills / code:** anything under `OPENCLAW_WORKSPACE_DIR` (default: `/data/workspace`)
+- **Custom binaries:** place executables in `/data/bin` (this image includes `/data/bin` on `PATH`)
 - **Node global tools (npm/pnpm):** this template configures defaults so global installs land under `/data`:
   - npm globals: `/data/npm` (binaries in `/data/npm/bin`)
   - pnpm globals: `/data/pnpm` (binaries) + `/data/pnpm-store` (store)
@@ -101,8 +103,24 @@ set -euo pipefail
 python3 -m venv /data/venv || true
 
 # Example: ensure npm/pnpm dirs exist
-mkdir -p /data/npm /data/npm-cache /data/pnpm /data/pnpm-store
+mkdir -p /data/bin /data/npm /data/npm-cache /data/pnpm /data/pnpm-store
+
+# Example: place custom binaries in /data/bin
+# curl -L "https://example.com/tool-linux-amd64" -o /data/bin/tool && chmod +x /data/bin/tool
 ```
+
+### Skills on Railway
+
+Works well:
+- API/HTTP-based skills
+- JS/Python-only skills that install under `/data`
+
+Needs extra setup:
+- Skills that require system binaries like `go`, `op`, or `ffmpeg`
+
+Fix pattern:
+- Install required binaries into `/data/bin` from `/data/workspace/bootstrap.sh`
+- Keep binary installation idempotent and version-pinned where possible
 
 ## Troubleshooting
 
@@ -138,6 +156,8 @@ Checklist:
   - `OPENCLAW_STATE_DIR=/data/.openclaw`
   - `OPENCLAW_WORKSPACE_DIR=/data/workspace`
 - Ensure **Public Networking** is enabled (Railway will inject `PORT`).
+- `/setup/healthz` is the deploy health endpoint; `/healthz` is the public liveness + gateway diagnostics endpoint.
+- Outside Railway, set `PORT` or `OPENCLAW_PUBLIC_PORT` explicitly to avoid unexpected local defaults.
 - Check Railway logs for the wrapper error: it will show `Gateway not ready:` with the reason.
 
 ### Legacy CLAWDBOT_* env vars / multiple state directories

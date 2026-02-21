@@ -28,6 +28,9 @@ const FALLBACK_DECISION_MATRIX = {
   claude_timeout_partial_output: "fallback_to_gemini",
   claude_empty_output_nonzero: "fallback_to_gemini",
   claude_generic_nonzero: "fallback_to_gemini",
+  claude_max_turns_reached: "fallback_to_gemini",
+  claude_terminal_subtype_error: "fallback_to_gemini",
+  claude_unclassified_output: "fallback_to_gemini",
   claude_auth_failure: "escalate_human_review_needed",
   claude_credit_or_quota_failure: "escalate_human_review_needed",
   gemini_auth_required: "escalate_human_review_needed",
@@ -203,7 +206,7 @@ function classifyApprovalText(text) {
     return "approved_with_revisions";
   }
   if (normalized.includes("approved")) return "approved";
-  return "approved_with_revisions";
+  return "claude_unclassified_output";
 }
 
 function detectClaudeFailure(text) {
@@ -254,16 +257,26 @@ async function classifyClaudeResult(result, outputFile) {
 
   const terminalEvent = await readTerminalResultEvent(outputFile);
   if (terminalEvent) {
+    const terminalSubtype = String(terminalEvent.subtype || "").toLowerCase();
     const terminalText =
       typeof terminalEvent.result === "string"
         ? terminalEvent.result
         : JSON.stringify(terminalEvent.result ?? "");
     const failureClass = detectClaudeFailure(terminalText);
+
+    if (terminalSubtype === "error_max_turns") {
+      return "claude_max_turns_reached";
+    }
+
     if (terminalEvent.is_error === true) {
       if (failureClass) return failureClass;
       return result.outputBytes === 0 ? "claude_empty_output_nonzero" : "claude_generic_nonzero";
     }
-    if (terminalEvent.is_error === false || terminalEvent.subtype === "success") {
+    if (terminalSubtype && terminalSubtype !== "success") {
+      if (failureClass) return failureClass;
+      return "claude_terminal_subtype_error";
+    }
+    if (terminalEvent.is_error === false || terminalSubtype === "success") {
       return classifyApprovalText(terminalText);
     }
     if (failureClass) return failureClass;

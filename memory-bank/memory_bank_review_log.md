@@ -13,3 +13,8 @@
 | 2026-02-21T03:27:47Z | Tier 1 | Completed first non-dry-run rehearsal with scripted runner and closed gaps `GAP-20260221-001`/`GAP-20260221-002` based on preflight and round7 evidence. |
 | 2026-02-21T03:29:27Z | Tier 1 | Updated runner logging to redact inline plan payloads from audit command metadata and revalidated dry-run output. |
 | 2026-02-21T03:35:10Z | Tier 1 | Fixed stream-json false-positive credit/quota classification, reran rehearsal successfully (`round9_claude`), and logged/closed `GAP-20260221-003`. |
+| 2026-02-21T03:49:31Z | Tier 1 | Re-reviewed updated `AGENTS.md`, retried Claude using script-first workflow, and updated railway plan status to `approved_with_revisions`. |
+| 2026-02-21T04:06:12Z | Tier 1 | Applied reviewer revisions, re-approved the railway reliability plan (round 6), resolved subagent doc-link gaps, and implemented Phase 1 code/docs changes. |
+| 2026-02-21T04:07:40Z | Tier 1 | Logged new review-classification discrepancy as `GAP-20260221-004` and updated active context/progress confidence constraints. |
+| 2026-02-21T04:17:25Z | Tier 1 | Fixed runner `error_max_turns` classification handling, validated with forced max-turn rehearsal, and closed `GAP-20260221-004`. |
+| 2026-02-21T04:23:09Z | Tier 1 | Completed automated Claude code-review checkpoint for Phase 1 + runner-classifier diff, captured artifact output, and logged result to `audit/code_reviews.log`. |

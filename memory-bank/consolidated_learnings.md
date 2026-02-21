@@ -12,3 +12,8 @@
 - Capturing preflight stage artifacts separately from final reviewer artifacts makes it easier to close or reopen context gaps with concrete evidence.
 - Audit command metadata should redact plan payloads; full plan content belongs in artifacts, not in one-line audit records.
 - For stream-json reviewer output, classify success/failure from terminal `type:"result"` events first; broad keyword scans over assistant text can create false failure escalations.
+- Keeping AGENTS “script-first” reviewer invocations aligned with actual repository docs/scripts prevents policy drift and failed operational handoffs.
+- `error_max_turns` can appear with `is_error:false`; approval logic should prefer terminal subtype semantics over optimistic text heuristics when classifying review outcomes.
+- When a newer successful attempt exists, keep prior anomalous attempts in audit history but explicitly track unresolved classifier issues as open context gaps.
+- Treat terminal subtype `error_max_turns` as a hard non-approval state even when `is_error:false`; reviewers may exhaust turns before issuing a valid verdict.
+- For direct `claude -p` code-review runs, `--output-format json` avoids the `stream-json` + `--print` verbosity constraint and yields a stable artifact for audit parsing.

@@ -28,7 +28,7 @@ for (const suffix of ["PUBLIC_PORT", "STATE_DIR", "WORKSPACE_DIR", "GATEWAY_TOKE
 // boot but the Railway domain will be routed to a different port.
 //
 // OPENCLAW_PUBLIC_PORT is kept as an escape hatch for non-Railway deployments.
-const PORT = Number.parseInt(process.env.PORT ?? process.env.OPENCLAW_PUBLIC_PORT ?? "3000", 10);
+const PORT = Number.parseInt(process.env.PORT ?? process.env.OPENCLAW_PUBLIC_PORT ?? "8080", 10);
 
 // State/workspace
 // OpenClaw defaults to ~/.openclaw.
@@ -39,6 +39,13 @@ const STATE_DIR =
 const WORKSPACE_DIR =
   process.env.OPENCLAW_WORKSPACE_DIR?.trim() ||
   path.join(STATE_DIR, "workspace");
+
+// Prefer a persistent binary location on Railway volumes.
+const DATA_BIN_DIR = "/data/bin";
+const pathParts = String(process.env.PATH || "").split(":").filter(Boolean);
+if (!pathParts.includes(DATA_BIN_DIR)) {
+  process.env.PATH = `${DATA_BIN_DIR}:${process.env.PATH || ""}`;
+}
 
 // Protect /setup with a user-provided password.
 const SETUP_PASSWORD = process.env.SETUP_PASSWORD?.trim();
@@ -1355,6 +1362,9 @@ app.use(async (req, res) => {
 
 const server = app.listen(PORT, "0.0.0.0", async () => {
   console.log(`[wrapper] listening on :${PORT}`);
+  if (!process.env.PORT && !process.env.OPENCLAW_PUBLIC_PORT) {
+    console.warn("[wrapper] WARNING: PORT not provided; using fallback port 8080.");
+  }
   console.log(`[wrapper] state dir: ${STATE_DIR}`);
   console.log(`[wrapper] workspace dir: ${WORKSPACE_DIR}`);
 

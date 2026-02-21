@@ -1,0 +1,157 @@
+diff --git a/Dockerfile b/Dockerfile
+index d5ca3f4..4d3bc16 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -61,7 +61,7 @@ ENV NPM_CONFIG_PREFIX=/data/npm
+ ENV NPM_CONFIG_CACHE=/data/npm-cache
+ ENV PNPM_HOME=/data/pnpm
+ ENV PNPM_STORE_DIR=/data/pnpm-store
+-ENV PATH="/data/npm/bin:/data/pnpm:${PATH}"
++ENV PATH="/data/bin:/data/npm/bin:/data/pnpm:${PATH}"
+ 
+ WORKDIR /app
+ 
+diff --git a/README.md b/README.md
+index 876b0aa..0084820 100644
+--- a/README.md
++++ b/README.md
+@@ -53,6 +53,7 @@ Then:
+ - Discord: https://discord.com/invite/clawd
+ 
+ If you’re filing a bug, please include the output of:
++- `/setup/healthz` (deploy health endpoint)
+ - `/healthz`
+ - `/setup/api/debug` (after authenticating to /setup)
+ 
+@@ -77,6 +78,7 @@ Railway containers have an ephemeral filesystem. Only the mounted volume at `/da
+ 
+ What persists cleanly today:
+ - **Custom skills / code:** anything under `OPENCLAW_WORKSPACE_DIR` (default: `/data/workspace`)
++- **Custom binaries:** place executables in `/data/bin` (this image includes `/data/bin` on `PATH`)
+ - **Node global tools (npm/pnpm):** this template configures defaults so global installs land under `/data`:
+   - npm globals: `/data/npm` (binaries in `/data/npm/bin`)
+   - pnpm globals: `/data/pnpm` (binaries) + `/data/pnpm-store` (store)
+@@ -101,9 +103,25 @@ set -euo pipefail
+ python3 -m venv /data/venv || true
+ 
+ # Example: ensure npm/pnpm dirs exist
+-mkdir -p /data/npm /data/npm-cache /data/pnpm /data/pnpm-store
++mkdir -p /data/bin /data/npm /data/npm-cache /data/pnpm /data/pnpm-store
++
++# Example: place custom binaries in /data/bin
++# curl -L "https://example.com/tool-linux-amd64" -o /data/bin/tool && chmod +x /data/bin/tool
+ ```
+ 
++### Skills on Railway
++
++Works well:
++- API/HTTP-based skills
++- JS/Python-only skills that install under `/data`
++
++Needs extra setup:
++- Skills that require system binaries like `go`, `op`, or `ffmpeg`
++
++Fix pattern:
++- Install required binaries into `/data/bin` from `/data/workspace/bootstrap.sh`
++- Keep binary installation idempotent and version-pinned where possible
++
+ ## Troubleshooting
+ 
+ ### “disconnected (1008): pairing required” / dashboard health offline
+@@ -138,6 +156,8 @@ Checklist:
+   - `OPENCLAW_STATE_DIR=/data/.openclaw`
+   - `OPENCLAW_WORKSPACE_DIR=/data/workspace`
+ - Ensure **Public Networking** is enabled (Railway will inject `PORT`).
++- `/setup/healthz` is the deploy health endpoint; `/healthz` is the public liveness + gateway diagnostics endpoint.
++- Outside Railway, set `PORT` or `OPENCLAW_PUBLIC_PORT` explicitly to avoid unexpected local defaults.
+ - Check Railway logs for the wrapper error: it will show `Gateway not ready:` with the reason.
+ 
+ ### Legacy CLAWDBOT_* env vars / multiple state directories
+diff --git a/scripts/run-plan-review.mjs b/scripts/run-plan-review.mjs
+index 3801907..10f4446 100644
+--- a/scripts/run-plan-review.mjs
++++ b/scripts/run-plan-review.mjs
+@@ -28,6 +28,9 @@ const FALLBACK_DECISION_MATRIX = {
+   claude_timeout_partial_output: "fallback_to_gemini",
+   claude_empty_output_nonzero: "fallback_to_gemini",
+   claude_generic_nonzero: "fallback_to_gemini",
++  claude_max_turns_reached: "fallback_to_gemini",
++  claude_terminal_subtype_error: "fallback_to_gemini",
++  claude_unclassified_output: "fallback_to_gemini",
+   claude_auth_failure: "escalate_human_review_needed",
+   claude_credit_or_quota_failure: "escalate_human_review_needed",
+   gemini_auth_required: "escalate_human_review_needed",
+@@ -203,7 +206,7 @@ function classifyApprovalText(text) {
+     return "approved_with_revisions";
+   }
+   if (normalized.includes("approved")) return "approved";
+-  return "approved_with_revisions";
++  return "claude_unclassified_output";
+ }
+ 
+ function detectClaudeFailure(text) {
+@@ -254,16 +257,26 @@ async function classifyClaudeResult(result, outputFile) {
+ 
+   const terminalEvent = await readTerminalResultEvent(outputFile);
+   if (terminalEvent) {
++    const terminalSubtype = String(terminalEvent.subtype || "").toLowerCase();
+     const terminalText =
+       typeof terminalEvent.result === "string"
+         ? terminalEvent.result
+         : JSON.stringify(terminalEvent.result ?? "");
+     const failureClass = detectClaudeFailure(terminalText);
++
++    if (terminalSubtype === "error_max_turns") {
++      return "claude_max_turns_reached";
++    }
++
+     if (terminalEvent.is_error === true) {
+       if (failureClass) return failureClass;
+       return result.outputBytes === 0 ? "claude_empty_output_nonzero" : "claude_generic_nonzero";
+     }
+-    if (terminalEvent.is_error === false || terminalEvent.subtype === "success") {
++    if (terminalSubtype && terminalSubtype !== "success") {
++      if (failureClass) return failureClass;
++      return "claude_terminal_subtype_error";
++    }
++    if (terminalEvent.is_error === false || terminalSubtype === "success") {
+       return classifyApprovalText(terminalText);
+     }
+     if (failureClass) return failureClass;
+diff --git a/src/server.js b/src/server.js
+index 2ecae7e..c8c3ca2 100644
+--- a/src/server.js
++++ b/src/server.js
+@@ -28,7 +28,7 @@ for (const suffix of ["PUBLIC_PORT", "STATE_DIR", "WORKSPACE_DIR", "GATEWAY_TOKE
+ // boot but the Railway domain will be routed to a different port.
+ //
+ // OPENCLAW_PUBLIC_PORT is kept as an escape hatch for non-Railway deployments.
+-const PORT = Number.parseInt(process.env.PORT ?? process.env.OPENCLAW_PUBLIC_PORT ?? "3000", 10);
++const PORT = Number.parseInt(process.env.PORT ?? process.env.OPENCLAW_PUBLIC_PORT ?? "8080", 10);
+ 
+ // State/workspace
+ // OpenClaw defaults to ~/.openclaw.
+@@ -40,6 +40,13 @@ const WORKSPACE_DIR =
+   process.env.OPENCLAW_WORKSPACE_DIR?.trim() ||
+   path.join(STATE_DIR, "workspace");
+ 
++// Prefer a persistent binary location on Railway volumes.
++const DATA_BIN_DIR = "/data/bin";
++const pathParts = String(process.env.PATH || "").split(":").filter(Boolean);
++if (!pathParts.includes(DATA_BIN_DIR)) {
++  process.env.PATH = `${DATA_BIN_DIR}:${process.env.PATH || ""}`;
++}
++
+ // Protect /setup with a user-provided password.
+ const SETUP_PASSWORD = process.env.SETUP_PASSWORD?.trim();
+ 
+@@ -1355,6 +1362,9 @@ app.use(async (req, res) => {
+ 
+ const server = app.listen(PORT, "0.0.0.0", async () => {
+   console.log(`[wrapper] listening on :${PORT}`);
++  if (!process.env.PORT && !process.env.OPENCLAW_PUBLIC_PORT) {
++    console.warn("[wrapper] WARNING: PORT not provided; using fallback port 8080.");
++  }
+   console.log(`[wrapper] state dir: ${STATE_DIR}`);
+   console.log(`[wrapper] workspace dir: ${WORKSPACE_DIR}`);
+ 

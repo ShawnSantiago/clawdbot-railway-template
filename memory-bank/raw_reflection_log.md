@@ -48,3 +48,27 @@
 - Second rehearsal returned `claude_credit_or_quota_failure` despite a successful stream transcript, exposing a false-positive classifier path.
 - Root cause was broad keyword matching (`quota`) against assistant text rather than structured terminal result events.
 - Updated classifier logic to parse terminal `type:"result"` events and reran rehearsal successfully (`round9_claude`).
+
+## 2026-02-21T03:49:31Z
+- Re-reviewed `AGENTS.md` after policy updates and switched retry execution to the script-first invocation path.
+- Claude review for `plan_20260221_railway_reliability_hardening` completed successfully as `approved_with_revisions` (iteration 3).
+- Identified one documentation policy gap: AGENTS references `docs/claude|gemini|qwen/subagent.md`, but those files are currently missing in this repo.
+
+## 2026-02-21T04:06:12Z
+- Incorporated repeated reviewer feedback into the reliability plan, including explicit auth-classifier design and build-memory scope corrections.
+- Resolved AGENTS doc-link drift by adding the referenced subagent markdown guides under `docs/`.
+- Completed Phase 1 reliability edits directly in runtime/docs surfaces and verified syntax with `npm run lint`.
+
+## 2026-02-21T04:07:40Z
+- Round 5 review output ended with terminal subtype `error_max_turns` even though the runner logged it as approved, revealing a new classifier edge case.
+- Opened `GAP-20260221-004` instead of ignoring the discrepancy so confidence and audit status remain policy-compliant.
+
+## 2026-02-21T04:17:25Z
+- Updated the runner classifier to explicitly map terminal subtype `error_max_turns` to `claude_max_turns_reached`.
+- Verified the fix against historical artifact evidence and with a fresh `--max-turns 1` forced run that now returns `human_review_needed` with the correct reason.
+- Closed `GAP-20260221-004` after confirming no false approval classification for max-turn exhaustion.
+
+## 2026-02-21T04:23:09Z
+- Re-ran AGENTS code-review preflight checks and confirmed Claude/Gemini CLI readiness plus lint health.
+- Executed Claude subagent code review with corrected output settings (`--output-format json`) and captured deterministic artifact output.
+- Logged the checkpoint to `audit/code_reviews.log` as `approved`, while keeping maintainer manual signoff open per policy.
