@@ -17,3 +17,4 @@
 - When a newer successful attempt exists, keep prior anomalous attempts in audit history but explicitly track unresolved classifier issues as open context gaps.
 - Treat terminal subtype `error_max_turns` as a hard non-approval state even when `is_error:false`; reviewers may exhaust turns before issuing a valid verdict.
 - For direct `claude -p` code-review runs, `--output-format json` avoids the `stream-json` + `--print` verbosity constraint and yields a stable artifact for audit parsing.
+- Manual signoff entries are more auditable when medium-risk findings are explicitly dispositioned inline and linked to the originating review artifact.
