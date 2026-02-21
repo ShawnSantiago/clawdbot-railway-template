@@ -13,3 +13,13 @@ npm-debug.log*
 
 # OS
 .DS_Store
+
+.cache
+.claude
+.claude.json
+.claude.json.backup
+.gemini
+.config
+.local
+.npm
+.pki

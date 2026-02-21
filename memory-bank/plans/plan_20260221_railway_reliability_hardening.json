@@ -1,0 +1,276 @@
+{
+  "plan_id": "plan_20260221_railway_reliability_hardening",
+  "created_at_utc": "2026-02-21T02:30:44Z",
+  "status": "human_review_needed",
+  "source_request": "Review proposed Railway reliability fixes and create an implementation plan.",
+  "constraints": [
+    "integrations.md is status: partial, so per policy each step confidence is capped at 6/10",
+    "no unresolved context gaps are currently logged"
+  ],
+  "review_findings": [
+    {
+      "id": "F1",
+      "severity": "high",
+      "summary": "Public port fallback still defaults to 3000 while container EXPOSE is 8080.",
+      "evidence": [
+        "src/server.js:31",
+        "Dockerfile:85"
+      ],
+      "impact": "If PORT is missing/misrouted, wrapper can bind 3000 while expected routing targets 8080, increasing 502 risk.",
+      "recommendation": "Change fallback from 3000 to 8080 and keep startup port logging."
+    },
+    {
+      "id": "F2",
+      "severity": "low",
+      "summary": "/healthz recommendation is already mostly implemented.",
+      "evidence": [
+        "src/server.js:330",
+        "src/server.js:305",
+        "README.md:56"
+      ],
+      "impact": "Primary work is docs/consistency, not new endpoint creation.",
+      "recommendation": "Keep /setup/healthz for deploy checks and document /healthz as the public live-debug endpoint."
+    },
+    {
+      "id": "F3",
+      "severity": "high",
+      "summary": "Interactive OAuth remains selectable and is not hard-blocked server-side.",
+      "evidence": [
+        "src/setup-app.js:33",
+        "src/setup-app.js:152",
+        "src/server.js:621"
+      ],
+      "impact": "Headless Railway onboarding can fail or stall when interactive auth choices are submitted.",
+      "recommendation": "Add server-side rejection for interactive choices in non-TTY/headless environments, and disable setup run button in UI for those choices."
+    },
+    {
+      "id": "F4",
+      "severity": "medium",
+      "summary": "Persistent /data/bin path is not included, which makes binary-based skills harder on Railway.",
+      "evidence": [
+        "Dockerfile:64",
+        "src/server.js:198",
+        "src/server.js:672"
+      ],
+      "impact": "Users can install tools under /data but executables may not resolve by default.",
+      "recommendation": "Include /data/bin in PATH and document bootstrap installation flow for binaries."
+    },
+    {
+      "id": "F5",
+      "severity": "medium",
+      "summary": "Build-memory resilience is documented but not enforced via Node heap setting.",
+      "evidence": [
+        "Dockerfile:36",
+        "Dockerfile:37",
+        "README.md:150"
+      ],
+      "impact": "Builds on lower-memory Railway plans remain vulnerable to heap OOM.",
+      "recommendation": "Add NODE_OPTIONS memory cap guidance (and optionally BuildKit cache guidance) with explicit caveats."
+    },
+    {
+      "id": "F6",
+      "severity": "medium",
+      "summary": "Debug endpoint already has substantial diagnostics but can better classify Discord 'offline' causes.",
+      "evidence": [
+        "src/server.js:889",
+        "src/server.js:934",
+        "src/server.js:916"
+      ],
+      "impact": "Operators still need manual interpretation for common token/config failures.",
+      "recommendation": "Add explicit readiness hints and channel-specific issue summaries to /setup/api/debug response."
+    }
+  ],
+  "steps": [
+    {
+      "step": "Step 1 - Align port fallback and runtime messaging",
+      "description": "Update public port fallback to 8080 and preserve explicit startup logs.",
+      "target_files": [
+        "src/server.js"
+      ],
+      "changes": [
+        "Set fallback in PORT resolution from \"3000\" to \"8080\".",
+        "Retain/verify startup log `[wrapper] listening on :${PORT}`."
+      ],
+      "validation": [
+        "Review startup logs for expected bound port.",
+        "Manual smoke: deploy with and without explicit PORT override in non-Railway test env."
+      ],
+      "risk": "Changing default can affect non-Railway local assumptions.",
+      "mitigation": "Keep OPENCLAW_PUBLIC_PORT override support and document explicit local PORT usage.",
+      "confidence_score": 6,
+      "rationale": "Change is localized and low complexity; behavior impact is predictable."
+    },
+    {
+      "step": "Step 2 - Health-check semantics and docs alignment",
+      "description": "Keep /setup/healthz for deploy checks and document /healthz as the preferred public liveness/debug endpoint.",
+      "target_files": [
+        "railway.toml",
+        "README.md"
+      ],
+      "changes": [
+        "Retain railway deploy healthcheck path unless operational testing suggests otherwise.",
+        "Update README troubleshooting and support sections to emphasize /healthz payload usage."
+      ],
+      "validation": [
+        "Confirm both /setup/healthz and /healthz return 200 in deployed service."
+      ],
+      "risk": "Operator confusion if endpoint roles are not clearly differentiated.",
+      "mitigation": "Document endpoint purpose with clear one-line descriptions.",
+      "confidence_score": 6,
+      "rationale": "Endpoint already exists; mostly documentation consistency work."
+    },
+    {
+      "step": "Step 3 - Enforce non-interactive auth choices on Railway/headless",
+      "description": "Prevent interactive OAuth flows in environments without a usable TTY.",
+      "target_files": [
+        "src/server.js",
+        "src/setup-app.js"
+      ],
+      "changes": [
+        "Add server-side interactive auth-choice classifier and reject unsupported choices with HTTP 400.",
+        "Detect headless context using TTY checks and/or Railway env hints.",
+        "In setup UI, show warning text and disable Run button for blocked interactive choices."
+      ],
+      "validation": [
+        "Try submitting known interactive choices; verify deterministic rejection message.",
+        "Try API-key choices; verify setup path remains unaffected."
+      ],
+      "risk": "Over-broad classifier could block valid non-interactive auth choices.",
+      "mitigation": "Use explicit allow/block lists derived from known AUTH_GROUP option values and add unit-level tests for classifier behavior.",
+      "confidence_score": 5,
+      "rationale": "Behavioral logic touches both frontend and backend; auth choice taxonomy can drift."
+    },
+    {
+      "step": "Step 4 - Make Railway binary installs first-class via /data/bin",
+      "description": "Add /data/bin to execution PATH and provide Railway-native skills guidance.",
+      "target_files": [
+        "Dockerfile",
+        "src/server.js",
+        "README.md"
+      ],
+      "changes": [
+        "Prepend /data/bin to PATH in runtime image.",
+        "Ensure subprocess env PATH includes /data/bin for wrapper-spawned commands.",
+        "Add README section: Skills on Railway (works well vs needs binaries) plus bootstrap.sh binary install example."
+      ],
+      "validation": [
+        "Place test executable in /data/bin and verify wrapper commands can resolve it.",
+        "Confirm docs accurately reflect runtime image tool availability."
+      ],
+      "risk": "PATH precedence could shadow system binaries if names collide.",
+      "mitigation": "Prepend only /data/bin and keep existing system PATH; document collision caveat.",
+      "confidence_score": 5,
+      "rationale": "Straightforward, but PATH ordering side effects require careful review."
+    },
+    {
+      "step": "Step 5 - Improve build resilience defaults",
+      "description": "Reduce OOM risk with Node heap cap and add cache guidance for builds.",
+      "target_files": [
+        "Dockerfile",
+        "README.md"
+      ],
+      "changes": [
+        "Add NODE_OPTIONS default with conservative max-old-space-size value.",
+        "Document memory override recommendations for constrained Railway tiers.",
+        "Document optional BuildKit cache approach; gate implementation on Railway builder support."
+      ],
+      "validation": [
+        "Build image on constrained environment and compare OOM incidence.",
+        "Verify no regression in successful build timings on normal tier."
+      ],
+      "risk": "Heap cap can under-allocate and fail large builds.",
+      "mitigation": "Document override path and keep value configurable via Railway Variables.",
+      "confidence_score": 4,
+      "rationale": "Runtime/build memory behavior varies by Railway plan and builder capabilities."
+    },
+    {
+      "step": "Step 6 - Expand Discord/debug diagnostics quality-of-life",
+      "description": "Expose clearer cause indicators and quick triage output in /setup/api/debug.",
+      "target_files": [
+        "src/server.js",
+        "src/setup-app.js",
+        "README.md"
+      ],
+      "changes": [
+        "Add explicit status flags for channel env/token presence (redacted, boolean only).",
+        "Include gateway reachability probe result and concise likely-cause hints.",
+        "Surface debug summary in setup UI and README troubleshooting flow."
+      ],
+      "validation": [
+        "Simulate missing Discord token and verify API emits explicit missing-token hint.",
+        "Simulate invalid token config and verify hint differs from missing-token case."
+      ],
+      "risk": "Diagnostic hints can become stale if upstream OpenClaw output changes.",
+      "mitigation": "Base hints on stable signals (exit code, token presence booleans, gateway connectivity) instead of brittle log text parsing.",
+      "confidence_score": 5,
+      "rationale": "Existing debug surface reduces complexity, but robust error classification needs careful heuristics."
+    },
+    {
+      "step": "Step 7 - Verification, audit logging, and rollout",
+      "description": "Complete documentation/audit updates and run manual validation checklist before merge.",
+      "target_files": [
+        "memory-bank/progress.md",
+        "memory-bank/raw_reflection_log.md",
+        "memory-bank/consolidated_learnings.md",
+        "memory-bank/memory_bank_review_log.md",
+        "audit/code_reviews.log"
+      ],
+      "changes": [
+        "Record Baby Steps checkpoints and review outcomes.",
+        "Capture post-implementation reflection and durable learnings.",
+        "Update progress with completion status and any deferred items."
+      ],
+      "validation": [
+        "Confirm audit entries exist for each increment.",
+        "Confirm Memory Bank files reflect final state."
+      ],
+      "risk": "Operational steps skipped under time pressure.",
+      "mitigation": "Use a fixed completion checklist and block merge until checklist is complete.",
+      "confidence_score": 6,
+      "rationale": "Process-heavy but deterministic once checklist is defined."
+    }
+  ],
+  "risks": [
+    {
+      "description": "Interactive auth blocklist may drift as OpenClaw auth options evolve.",
+      "mitigation": "Centralize auth-choice metadata and assert allowed/blocked behavior in tests."
+    },
+    {
+      "description": "Port fallback alignment may be misconstrued as replacing Railway-injected PORT behavior.",
+      "mitigation": "Keep comments explicit: Railway PORT remains primary; fallback is safety net."
+    },
+    {
+      "description": "Build-memory tuning may not fit all workloads.",
+      "mitigation": "Document NODE_OPTIONS as configurable and provide recommended ranges."
+    }
+  ],
+  "rollback_strategy": [
+    "Revert port fallback/default PATH changes if deploy routing or command resolution regressions appear.",
+    "Gate interactive-auth rejection behind a feature flag if onboarding false-positives are reported.",
+    "Remove NODE_OPTIONS default if build failures increase on larger refs."
+  ],
+  "overall_confidence": {
+    "score": 5,
+    "rationale": "Plan is grounded in current codebase, but integrations context is partial and automated reviewer execution is currently blocked (GAP-20260221-001)."
+  },
+  "review_automation": {
+    "status": "human_review_needed",
+    "attempts": [
+      {
+        "reviewer": "claude-plan-reviewer",
+        "iteration": 1,
+        "result": "claude_failed",
+        "timestamp_utc": "2026-02-21T02:40:25Z",
+        "evidence": "audit/plan_reviews.log"
+      },
+      {
+        "reviewer": "gemini-plan-reviewer",
+        "iteration": 2,
+        "result": "fallback_failed",
+        "timestamp_utc": "2026-02-21T02:42:33Z",
+        "evidence": "audit/plan_reviews.log"
+      }
+    ],
+    "gap_id": "GAP-20260221-001"
+  }
+}

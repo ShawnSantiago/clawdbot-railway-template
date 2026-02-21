@@ -10,7 +10,8 @@
     "start": "node src/server.js",
     "lint": "node -c src/server.js",
     "test": "node --test",
-    "smoke": "node scripts/smoke.js"
+    "smoke": "node scripts/smoke.js",
+    "plan:review": "node scripts/run-plan-review.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",

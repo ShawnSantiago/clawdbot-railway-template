@@ -1,0 +1,9 @@
+# Preflight Validation
+timestamp_utc: 2026-02-21T03:34:01Z
+timeout_seconds: 600
+gemini_timeout_seconds: 60
+
+preflight_stage_1_claude_cli | status=pass | exit_code=0 | elapsed_seconds=1 | detail="claude --version" | output_file=/home/shawn/projects/clawdbot-railway-template/audit/plan_review_outputs/preflight_validation_20260221_preflight_stage_1_claude_cli.txt
+preflight_stage_2_gemini_cli | status=pass | exit_code=0 | elapsed_seconds=2 | detail="gemini --version" | output_file=/home/shawn/projects/clawdbot-railway-template/audit/plan_review_outputs/preflight_validation_20260221_preflight_stage_2_gemini_cli.txt
+preflight_stage_3_claude_noninteractive_probe | status=pass | exit_code=0 | elapsed_seconds=8 | detail="claude -p --output-format json --max-turns 1 Reply with exactly OK" | output_file=/home/shawn/projects/clawdbot-railway-template/audit/plan_review_outputs/preflight_validation_20260221_preflight_stage_3_claude_noninteractive_probe.txt
+preflight_stage_4_gemini_noninteractive_probe | status=pass | exit_code=0 | elapsed_seconds=9 | detail="gemini -p Reply with exactly OK" | output_file=/home/shawn/projects/clawdbot-railway-template/audit/plan_review_outputs/preflight_validation_20260221_preflight_stage_4_gemini_noninteractive_probe.txt
