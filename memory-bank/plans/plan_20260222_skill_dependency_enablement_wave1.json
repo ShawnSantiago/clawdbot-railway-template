@@ -1,0 +1,275 @@
+{
+  "plan_id": "plan_20260222_skill_dependency_enablement_wave1",
+  "created_at_utc": "2026-02-22T02:49:57Z",
+  "status": "approved_with_revisions",
+  "source_request": "Create a plan and review with subagent for installing proper dependencies for blocked skills on Railway.",
+  "scope": "Enable Linux-compatible blocked built-in skills in Railway by installing missing binaries under persistent /data paths and setting required env/config values; explicitly exclude darwin-only skills from installation scope.",
+  "constraints": [
+    "integrations.md is status: partial; step confidence must remain <= 6",
+    "No unresolved context gaps are currently open",
+    "Homebrew-based install hints in UI are not valid for Railway Linux runtime",
+    "Do not rely on ephemeral /usr installs for persistent skill functionality"
+  ],
+  "storage_metadata": {
+    "plan_file_path": "memory-bank/plans/plan_20260222_skill_dependency_enablement_wave1.json",
+    "cross_references": [
+      {
+        "file": "memory-bank/activeContext.md",
+        "section": "## Plan Cross-References",
+        "link_format": "[Plan: plan_20260222_skill_dependency_enablement_wave1](memory-bank/plans/plan_20260222_skill_dependency_enablement_wave1.json)"
+      },
+      {
+        "file": "memory-bank/progress.md",
+        "section": "## Active Plans",
+        "link_format": "[Plan: plan_20260222_skill_dependency_enablement_wave1](memory-bank/plans/plan_20260222_skill_dependency_enablement_wave1.json)"
+      }
+    ],
+    "retention_policy": "archive_after_completion_plus_30_days"
+  },
+  "inventory_snapshot": {
+    "captured_from": "Skills UI snippet provided by user",
+    "captured_at_utc": "2026-02-22T02:49:57Z",
+    "darwin_only_blocked": [
+      { "skill": "apple-notes", "missing": ["bin:memo", "os:darwin"] },
+      { "skill": "apple-reminders", "missing": ["bin:remindctl", "os:darwin"] },
+      { "skill": "bear-notes", "missing": ["bin:grizzly", "os:darwin"] },
+      { "skill": "imsg", "missing": ["bin:imsg", "os:darwin"] },
+      { "skill": "model-usage", "missing": ["bin:codexbar", "os:darwin"] },
+      { "skill": "peekaboo", "missing": ["bin:peekaboo", "os:darwin"] },
+      { "skill": "things-mac", "missing": ["bin:things", "os:darwin"] }
+    ],
+    "config_only_blocked": [
+      { "skill": "bluebubbles", "missing": ["config:channels.bluebubbles"] },
+      { "skill": "slack", "missing": ["config:channels.slack"] },
+      { "skill": "voice-call", "missing": ["config:plugins.entries.voice-call.enabled"] },
+      { "skill": "notion", "missing": ["env:NOTION_API_KEY"] },
+      {
+        "skill": "sherpa-onnx-tts",
+        "missing": ["env:SHERPA_ONNX_RUNTIME_DIR", "env:SHERPA_ONNX_MODEL_DIR"]
+      }
+    ],
+    "binary_plus_env_blocked": [
+      { "skill": "goplaces", "missing": ["bin:goplaces", "env:GOOGLE_PLACES_API_KEY"] },
+      { "skill": "local-places", "missing": ["bin:uv", "env:GOOGLE_PLACES_API_KEY"] },
+      { "skill": "nano-banana-pro", "missing": ["bin:uv", "env:GEMINI_API_KEY"] },
+      { "skill": "sag", "missing": ["bin:sag", "env:ELEVENLABS_API_KEY"] },
+      { "skill": "trello", "missing": ["bin:jq", "env:TRELLO_API_KEY", "env:TRELLO_TOKEN"] }
+    ],
+    "binary_only_blocked": [
+      { "skill": "1password", "missing": ["bin:op"] },
+      { "skill": "blogwatcher", "missing": ["bin:blogwatcher"] },
+      { "skill": "blucli", "missing": ["bin:blu"] },
+      { "skill": "camsnap", "missing": ["bin:camsnap"] },
+      { "skill": "clawhub", "missing": ["bin:clawhub"] },
+      { "skill": "eightctl", "missing": ["bin:eightctl"] },
+      { "skill": "gemini", "missing": ["bin:gemini"] },
+      { "skill": "gifgrep", "missing": ["bin:gifgrep"] },
+      { "skill": "github", "missing": ["bin:gh"] },
+      { "skill": "gog", "missing": ["bin:gog"] },
+      { "skill": "himalaya", "missing": ["bin:himalaya"] },
+      { "skill": "mcporter", "missing": ["bin:mcporter"] },
+      { "skill": "nano-pdf", "missing": ["bin:nano-pdf"] },
+      { "skill": "obsidian", "missing": ["bin:obsidian-cli"] },
+      { "skill": "openai-whisper", "missing": ["bin:whisper"] },
+      { "skill": "openhue", "missing": ["bin:openhue"] },
+      { "skill": "oracle", "missing": ["bin:oracle"] },
+      { "skill": "ordercli", "missing": ["bin:ordercli"] },
+      { "skill": "session-logs", "missing": ["bin:jq", "bin:rg"] },
+      { "skill": "songsee", "missing": ["bin:songsee"] },
+      { "skill": "sonoscli", "missing": ["bin:sonos"] },
+      { "skill": "summarize", "missing": ["bin:summarize"] },
+      { "skill": "tmux", "missing": ["bin:tmux"] },
+      { "skill": "video-frames", "missing": ["bin:ffmpeg"] },
+      { "skill": "wacli", "missing": ["bin:wacli"] }
+    ],
+    "blocked_reason_not_shown": [
+      { "skill": "coding-agent", "missing": ["unknown"] },
+      { "skill": "spotify-player", "missing": ["unknown"] }
+    ]
+  },
+  "execution_waves": [
+    {
+      "wave": "Wave 0 - Scope gating",
+      "goal": "Exclude non-Linux targets and document non-actionable blockers.",
+      "includes": ["All darwin-only skills", "Unknown-reason skills pending explicit failure reason"]
+    },
+    {
+      "wave": "Wave 1 - Foundation binaries",
+      "goal": "Install shared prerequisites used by multiple skills.",
+      "includes": ["jq", "rg", "tmux", "ffmpeg", "uv"]
+    },
+    {
+      "wave": "Wave 2 - Core CLIs with direct install paths",
+      "goal": "Enable highest-value Linux-compatible CLIs first.",
+      "includes": ["gh", "gemini", "op", "clawhub", "mcporter", "oracle"]
+    },
+    {
+      "wave": "Wave 3 - Go/ecosystem binaries",
+      "goal": "Install remaining Go-oriented tool binaries using prebuilt artifacts or pinned local builds under /data.",
+      "includes": ["blogwatcher", "blu", "eightctl", "goplaces", "sonos", "ordercli", "wacli", "songsee", "gog"]
+    },
+    {
+      "wave": "Wave 4 - Env/config completion",
+      "goal": "Set required API keys/channel config/plugin toggles for non-binary blockers.",
+      "includes": [
+        "GOOGLE_PLACES_API_KEY",
+        "GEMINI_API_KEY",
+        "ELEVENLABS_API_KEY",
+        "TRELLO_API_KEY",
+        "TRELLO_TOKEN",
+        "NOTION_API_KEY",
+        "channels.bluebubbles",
+        "channels.slack",
+        "plugins.entries.voice-call.enabled",
+        "SHERPA_ONNX_RUNTIME_DIR",
+        "SHERPA_ONNX_MODEL_DIR"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "step": "Step 1 - Lock dependency matrix and installation source per skill",
+      "description": "Convert the inventory snapshot into an actionable matrix with exact source URLs/package names for each Linux-compatible binary.",
+      "deliverables": [
+        "matrix file/table with skill -> missing dependency -> install source -> architecture support (x86_64/aarch64) -> verification command",
+        "explicit non-actionable list for darwin-only blockers"
+      ],
+      "validation": [
+        "Every Linux-compatible blocked skill has a planned install source and command check.",
+        "Darwin-only skills are explicitly marked excluded and not queued for install."
+      ],
+      "risk": "Some CLI names may not map to stable Linux release artifacts.",
+      "mitigation": "Prefer upstream release binaries first; if unavailable, defer and mark as manual/unsupported.",
+      "confidence_score": 6,
+      "rationale": "Source mapping is mostly deterministic from provided blocker list."
+    },
+    {
+      "step": "Step 2 - Implement idempotent /data/workspace/bootstrap.sh install flow",
+      "description": "Build or update bootstrap automation to install chosen binaries into /data/bin and shared runtimes into /data paths.",
+      "deliverables": [
+        "idempotent bootstrap script with pinned versions and direct download URLs (no dynamic latest-release lookups at boot)",
+        "directory bootstrap for /data/bin, /data/venv, optional /data/toolchains",
+        "structured logging per dependency",
+        "architecture-aware installer branches for amd64 vs arm64 binaries"
+      ],
+      "validation": [
+        "Bootstrap succeeds on fresh environment.",
+        "Bootstrap re-run skips already-installed versions without failure.",
+        "Bootstrap does not call GitHub 'latest release' APIs on each startup."
+      ],
+      "risk": "Long-running installations can delay startup on cold boots.",
+      "mitigation": "Use command/version guards and keep heavy installs conditional.",
+      "confidence_score": 5,
+      "rationale": "Script logic is straightforward but operationally sensitive."
+    },
+    {
+      "step": "Step 3 - Wire runtime PATH and environment prerequisites",
+      "description": "Ensure runtime can resolve installed binaries and required API keys/config values are present.",
+      "deliverables": [
+        "verified PATH includes /data/bin",
+        "env checklist for required API keys",
+        "config checklist for channel/plugin blockers"
+      ],
+      "validation": [
+        "Each installed binary resolves with command -v at runtime.",
+        "No required env/config blocker remains unresolved for in-scope skills."
+      ],
+      "risk": "Secrets misconfiguration can still block otherwise-installed skills.",
+      "mitigation": "Separate binary validation from auth/config validation and report both clearly.",
+      "confidence_score": 6,
+      "rationale": "Environment wiring is clear, but secret availability is external."
+    },
+    {
+      "step": "Step 4 - Execute wave-based verification and capture outcomes",
+      "description": "Re-test skill eligibility after each wave and record delta (blocked -> eligible or blocked with new reason).",
+      "deliverables": [
+        "before/after eligibility report for all in-scope skills",
+        "residual blocker list with exact reason"
+      ],
+      "validation": [
+        "Wave 1 foundation tools reduce blockers that depend on jq/rg/ffmpeg/tmux/uv.",
+        "At least one pass over all in-scope blocked skills is completed and logged."
+      ],
+      "risk": "Some UI blocker states may cache stale status after dependency install.",
+      "mitigation": "Force restart/reload and validate with direct command checks in addition to UI chips.",
+      "confidence_score": 5,
+      "rationale": "Verification process is reliable but UI state propagation can lag."
+    },
+    {
+      "step": "Step 5 - Establish rollback and maintenance policy",
+      "description": "Define how to revert problematic dependency changes and keep dependency versions stable.",
+      "deliverables": [
+        "bootstrap rollback instructions",
+        "version pin registry",
+        "unsupported skill list for Linux runtime"
+      ],
+      "validation": [
+        "Rollback path can disable problematic installs and restore last known-good bootstrap in one restart.",
+        "Pinned versions are documented for all installed binaries."
+      ],
+      "risk": "Unpinned ad-hoc upgrades can reintroduce breakage.",
+      "mitigation": "Require pin updates + verification checklist before version changes.",
+      "confidence_score": 6,
+      "rationale": "Operational controls are clear and low complexity."
+    }
+  ],
+  "risks": [
+    {
+      "description": "Homebrew-only install hints in UI can mislead Linux Railway operators.",
+      "mitigation": "Use Linux-native install sources only and maintain explicit 'ignore brew hint on Railway' guidance."
+    },
+    {
+      "description": "A subset of skills are inherently macOS-only and will never become eligible on Railway Linux.",
+      "mitigation": "Keep explicit exclusion list and avoid spending install effort on darwin-only skills."
+    },
+    {
+      "description": "Third-party credentials may be unavailable during rollout, masking binary success.",
+      "mitigation": "Report binary readiness and auth readiness as separate checkpoints."
+    },
+    {
+      "description": "Unknown blockers for coding-agent/spotify-player may require additional diagnostics.",
+      "mitigation": "Capture explicit blocker reason before including in install waves."
+    },
+    {
+      "description": "Dynamic release-resolution at startup can hit GitHub API rate limits and create flaky installs.",
+      "mitigation": "Use pinned version download URLs and verify checksums instead of runtime 'latest' queries."
+    }
+  ],
+  "rollback_strategy": [
+    "Restore previous bootstrap script backup and restart wrapper service.",
+    "Temporarily disable failing dependency install blocks while keeping foundation tools intact.",
+    "Re-run baseline binary checks and compare against pre-change skill eligibility snapshot."
+  ],
+  "overall_confidence": {
+    "score": 5,
+    "rationale": "Plan is concrete and based on explicit blocker data, but confidence remains conservative due to partial integrations context and unresolved unknown blocker reasons for some skills."
+  },
+  "review_automation": {
+    "status": "approved",
+    "required_by_policy": true,
+    "attempts": [
+      {
+        "timestamp_utc": "2026-02-22T02:56:15Z",
+        "reviewer": "claude-plan-reviewer",
+        "iteration": 1,
+        "result": "claude_failed",
+        "classification": "claude_unclassified_output",
+        "output_file": "audit/plan_review_outputs/plan_20260222_skill_dependency_enablement_wave1_round1_claude.json"
+      },
+      {
+        "timestamp_utc": "2026-02-22T02:56:48Z",
+        "reviewer": "gemini-plan-reviewer",
+        "iteration": 2,
+        "result": "approved",
+        "classification": "approved",
+        "output_file": "audit/plan_review_outputs/plan_20260222_skill_dependency_enablement_wave1_round2_gemini.txt"
+      }
+    ],
+    "required_actions_applied": [
+      "Added architecture support requirement to Step 1 dependency matrix deliverables.",
+      "Added pinned direct download URL requirement and architecture-aware installer logic to Step 2.",
+      "Added validation guard against runtime latest-release API lookups."
+    ],
+    "notes": "Claude primary path executed; fallback Gemini approved plan. Reviewer recommendations were incorporated."
+  }
+}

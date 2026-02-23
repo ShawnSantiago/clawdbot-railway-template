@@ -1,6 +1,6 @@
 # Progress
 
-`last_updated_utc`: 2026-02-21T11:44:35Z  
+`last_updated_utc`: 2026-02-23T16:56:39Z  
 `status`: active
 
 ## Current State
@@ -15,6 +15,10 @@
 - Post-fix rehearsal returned `approved_with_revisions` with deterministic artifact output.
 - Automated Claude code-review checkpoint for implementation diff returned `approved` (2 medium, 3 low findings) and was logged.
 - Maintainer manual signoff completed with disposition of both medium findings; checkpoint is now closed.
+- Skill dependency installation plan for blocked Railway skills has been authored and stored for approval.
+- Wave-based dependency enablement plan has been authored from explicit skill blocker inventory and is pending subagent review.
+- Subagent review for wave-based dependency enablement plan completed; fallback reviewer approved and recommendations were incorporated.
+- Wave 1 dependency implementation completed: Docker runtime foundation binaries + pinned `gh`/`uv`, persistent bootstrap template, and architecture-aware dependency matrix.
 
 ## Task Snapshot
 - [x] Created `memory-bank/` root.
@@ -42,14 +46,23 @@
 - [x] Fix stream-json false-positive `claude_credit_or_quota_failure` classification.
 - [x] Run automated subagent code review for Phase 1 reliability + runner-classifier changes and capture artifact/log entry.
 - [x] Complete maintainer manual code-review checkpoint for latest runner changes.
+- [x] Author dependency installation plan for blocked skills in Railway runtime.
+- [x] Author wave-based dependency enablement plan from extracted blocked-skill list.
+- [x] Complete subagent plan-review checkpoint for `plan_20260222_skill_dependency_enablement_wave1`.
+- [x] Implement Wave 1 dependency enablement baseline (`Dockerfile`, bootstrap template, matrix docs).
 
 ## Metrics Baseline
 - Defect escape rate: TBD
 - Average review turnaround: TBD
 
 ## Next Updates
+- Execute Step 4 of `plan_20260222_skill_dependency_enablement_wave1`: run before/after eligibility checks for in-scope skills after redeploy.
+- Execute next dependency wave for remaining Linux blockers (`blogwatcher`, `blucli`, `eightctl`, `goplaces`, `sonoscli`, etc.) with pinned source map.
+- Review whether `plan_20260221_skill_dependency_installation` should be superseded by the newer wave-based plan.
 - Capture baseline/post-change Railway metrics required by `plan_20260221_railway_reliability_hardening`.
 
 ## Active Plans
 - [Plan: plan_20260221_railway_reliability_hardening](memory-bank/plans/plan_20260221_railway_reliability_hardening.json)
 - [Plan: plan_20260221_reviewer_automation_stability](memory-bank/plans/plan_20260221_reviewer_automation_stability.json)
+- [Plan: plan_20260221_skill_dependency_installation](memory-bank/plans/plan_20260221_skill_dependency_installation.json)
+- [Plan: plan_20260222_skill_dependency_enablement_wave1](memory-bank/plans/plan_20260222_skill_dependency_enablement_wave1.json)

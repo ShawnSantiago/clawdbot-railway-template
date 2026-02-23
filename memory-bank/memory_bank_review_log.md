@@ -19,3 +19,6 @@
 | 2026-02-21T04:17:25Z | Tier 1 | Fixed runner `error_max_turns` classification handling, validated with forced max-turn rehearsal, and closed `GAP-20260221-004`. |
 | 2026-02-21T04:23:09Z | Tier 1 | Completed automated Claude code-review checkpoint for Phase 1 + runner-classifier diff, captured artifact output, and logged result to `audit/code_reviews.log`. |
 | 2026-02-21T11:44:35Z | Tier 1 | Completed maintainer manual code-review signoff and disposition for medium findings; synchronized P0 checkpoint status in active context and progress. |
+| 2026-02-21T12:52:48Z | Tier 1 | Added plan `plan_20260221_skill_dependency_installation`, cross-referenced active work, and logged dependency-planning reflection updates. |
+| 2026-02-22T02:56:48Z | Tier 1 | Added and reviewed `plan_20260222_skill_dependency_enablement_wave1` via subagent workflow (Claude primary, Gemini fallback approved) and synced revised plan/memory updates. |
+| 2026-02-23T16:56:39Z | Tier 1 | Executed Wave 1 skill dependency implementation (Docker baseline deps + pinned `gh`/`uv`, persistent bootstrap template, and Linux dependency matrix) and synced memory-bank reflections/progress. |

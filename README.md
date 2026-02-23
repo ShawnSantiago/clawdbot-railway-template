@@ -109,6 +109,15 @@ mkdir -p /data/bin /data/npm /data/npm-cache /data/pnpm /data/pnpm-store
 # curl -L "https://example.com/tool-linux-amd64" -o /data/bin/tool && chmod +x /data/bin/tool
 ```
 
+Starter template for built-in skill dependencies:
+
+```bash
+cp /app/scripts/bootstrap/railway-skill-deps.sh /data/workspace/bootstrap.sh
+chmod +x /data/workspace/bootstrap.sh
+```
+
+The template uses pinned versions and installs to persistent `/data` paths.
+
 ### Skills on Railway
 
 Works well:
@@ -121,6 +130,13 @@ Needs extra setup:
 Fix pattern:
 - Install required binaries into `/data/bin` from `/data/workspace/bootstrap.sh`
 - Keep binary installation idempotent and version-pinned where possible
+- Use the matrix in `docs/railway/skill-dependency-matrix.md` to separate:
+  - Linux-installable blockers,
+  - config/env-only blockers,
+  - darwin-only blockers (excluded on Railway)
+
+Built into this image by default (Wave 1 foundation):
+- `jq`, `rg`, `tmux`, `ffmpeg`, `gh`, `uv`
 
 ## Troubleshooting
 

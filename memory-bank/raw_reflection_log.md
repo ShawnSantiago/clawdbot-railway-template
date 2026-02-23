@@ -77,3 +77,18 @@
 - Completed maintainer manual signoff in `audit/code_reviews.log` for the Phase 1 reliability + runner classifier checkpoint.
 - Dispositioned both medium findings explicitly as accepted design choices with rationale and artifact linkage.
 - Synced active context/progress to close the P0 code-review checkpoint and leave Railway metrics capture as the next update.
+
+## 2026-02-21T12:52:48Z
+- Reviewed latest memory-bank context and drafted a dedicated plan for blocked skill dependencies in Railway.
+- Kept confidence conservative (<=6 per step) because `integrations.md` remains `status: partial`.
+- Stored and cross-referenced `plan_20260221_skill_dependency_installation` with explicit validation and rollback gates.
+
+## 2026-02-22T02:56:48Z
+- Authored `plan_20260222_skill_dependency_enablement_wave1` from explicit blocked-skill inventory categories (darwin-only, binary-only, binary+env, config-only, unknown).
+- Ran AGENTS-required subagent review via `scripts/run-plan-review.mjs`; Claude classification returned `claude_unclassified_output`, Gemini fallback returned `approved`.
+- Incorporated reviewer recommendations directly into plan steps (architecture-aware matrix and pinned direct URLs) and updated plan status to `approved_with_revisions`.
+
+## 2026-02-23T16:56:39Z
+- Executed Wave 1 dependency implementation instead of stopping at plan artifacts: runtime image now ships `jq`, `ripgrep`, `tmux`, `ffmpeg`, plus pinned `gh` and `uv`.
+- Added a persistent, idempotent bootstrap template (`scripts/bootstrap/railway-skill-deps.sh`) that installs pinned `op` and npm-based CLIs (`gemini`, `clawhub`, `mcporter`, `oracle`) into `/data`.
+- Added an explicit Linux dependency matrix (`docs/railway/skill-dependency-matrix.md`) and wired README usage so operators can distinguish installable blockers vs config-only vs darwin-only exclusions.

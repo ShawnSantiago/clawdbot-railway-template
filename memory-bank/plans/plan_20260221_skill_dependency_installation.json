@@ -1,0 +1,203 @@
+{
+  "plan_id": "plan_20260221_skill_dependency_installation",
+  "created_at_utc": "2026-02-21T12:52:48Z",
+  "status": "in_progress",
+  "source_request": "Create a plan to install missing dependencies for skills that cannot be installed in the current Railway Docker environment.",
+  "scope": "Enable blocked skills by installing required Linux-compatible dependencies in persistent Railway paths without relying on Homebrew.",
+  "constraints": [
+    "integrations.md is status: partial, so per policy each step confidence is capped at 6/10",
+    "no unresolved context gaps are currently logged",
+    "runtime image does not include Homebrew or Go by default",
+    "changes should favor persistent /data paths instead of ephemeral /usr paths"
+  ],
+  "assumptions": [
+    "Primary failing dependency classes include tools like go, op, ffmpeg, and similar external binaries.",
+    "Skill install failures are occurring in Railway runtime/container context rather than local desktop environments.",
+    "A bootstrap workflow under /data/workspace is acceptable for your deployment process."
+  ],
+  "storage_metadata": {
+    "plan_file_path": "memory-bank/plans/plan_20260221_skill_dependency_installation.json",
+    "cross_references": [
+      {
+        "file": "memory-bank/activeContext.md",
+        "section": "## Priorities",
+        "link_format": "[Plan: plan_20260221_skill_dependency_installation](memory-bank/plans/plan_20260221_skill_dependency_installation.json)"
+      },
+      {
+        "file": "memory-bank/progress.md",
+        "section": "## Active Plans",
+        "link_format": "[Plan: plan_20260221_skill_dependency_installation](memory-bank/plans/plan_20260221_skill_dependency_installation.json)"
+      }
+    ],
+    "retention_policy": "archive_after_completion_plus_30_days"
+  },
+  "steps": [
+    {
+      "step": "Step 1 - Build a skill dependency matrix",
+      "description": "Inventory blocked skills and map each one to exact missing dependencies and install source.",
+      "target_surfaces": [
+        "Skills UI install error messages",
+        "Skill manifests/install scripts",
+        "Runtime command availability checks"
+      ],
+      "activities": [
+        "List each blocked skill by name/ID and capture the exact failure text.",
+        "Classify dependencies by type: node package, python package, static binary, Go-built binary, external service auth.",
+        "Create a matrix: skill -> dependency -> install method -> validation command."
+      ],
+      "validation": [
+        "Every blocked skill has at least one mapped dependency root cause.",
+        "No dependency is left with an ambiguous install source."
+      ],
+      "risk": "Some skills have hidden optional dependencies not surfaced until runtime.",
+      "mitigation": "Mark optional dependencies explicitly and include second-pass runtime validation after installation.",
+      "confidence_score": 6,
+      "rationale": "Discovery work is straightforward but dependent on complete error capture from the environment."
+    },
+    {
+      "step": "Step 2 - Define Railway-safe install strategy per dependency class",
+      "description": "Standardize how each dependency type is installed and persisted on Railway.",
+      "target_surfaces": [
+        "/data/bin",
+        "/data/venv",
+        "/data/toolchains/go (if needed)",
+        "Railway environment variables"
+      ],
+      "activities": [
+        "Use Linux-native binaries/releases, never Homebrew paths.",
+        "Install executable tools into /data/bin and ensure executable permissions.",
+        "Install Python dependencies into /data/venv and expose /data/venv/bin.",
+        "For Go-required tooling, either download prebuilt binaries or install a pinned Go toolchain under /data and build into /data/bin."
+      ],
+      "validation": [
+        "Each dependency class has one approved installation method and persistent target path.",
+        "No install path relies on ephemeral filesystem segments."
+      ],
+      "risk": "Architecture mismatch (amd64 vs arm64) can break downloaded binaries.",
+      "mitigation": "Add architecture detection in bootstrap and map download URLs/checksums by architecture.",
+      "confidence_score": 5,
+      "rationale": "Pattern is known-good, but binary source and architecture handling add moderate complexity."
+    },
+    {
+      "step": "Step 3 - Implement idempotent bootstrap automation",
+      "description": "Create/update /data/workspace/bootstrap.sh to install dependencies repeatedly and safely.",
+      "target_files": [
+        "/data/workspace/bootstrap.sh",
+        "/data/workspace/bootstrap.versions.env (optional)"
+      ],
+      "activities": [
+        "Add set -euo pipefail, create required directories, and include command-exists guards.",
+        "Pin versions for each installed dependency and prefer checksum verification where available.",
+        "Log clear success/failure lines per dependency for auditability."
+      ],
+      "validation": [
+        "Bootstrap can run twice without breaking existing installations (idempotent behavior).",
+        "Bootstrap exits non-zero when required install steps fail."
+      ],
+      "risk": "Long bootstrap duration can delay service startup.",
+      "mitigation": "Gate heavyweight installs with version checks and skip already-installed versions.",
+      "confidence_score": 5,
+      "rationale": "Script design is standard; idempotency and robust error handling require careful implementation."
+    },
+    {
+      "step": "Step 4 - Align runtime environment and secrets wiring",
+      "description": "Ensure installed tools are discoverable and required credentials are supplied safely.",
+      "target_surfaces": [
+        "Railway Variables",
+        "Runtime PATH",
+        "Skill-specific auth env vars"
+      ],
+      "activities": [
+        "Confirm PATH includes /data/bin (already true in Docker/runtime wrapper).",
+        "Add any additional required env vars for toolchains/services (without committing secret values).",
+        "Document env requirements per blocked skill in a short operator checklist."
+      ],
+      "validation": [
+        "Required binaries resolve with `command -v` from runtime shell context.",
+        "No secrets are committed to repository files."
+      ],
+      "risk": "Misconfigured env vars can make tools appear installed but unusable.",
+      "mitigation": "Pair each env var with a one-line validation command and expected output.",
+      "confidence_score": 6,
+      "rationale": "Low code complexity; moderate operational risk if env wiring is incomplete."
+    },
+    {
+      "step": "Step 5 - Validate dependency availability and skill install success",
+      "description": "Run an explicit verification checklist before declaring readiness.",
+      "target_surfaces": [
+        "Runtime diagnostics",
+        "Skills install UI",
+        "Setup debug endpoints/logs"
+      ],
+      "activities": [
+        "Run command/version checks for each installed dependency (e.g., go/op/ffmpeg where applicable).",
+        "Re-attempt install for each previously blocked skill.",
+        "Capture before/after results in a lightweight validation record."
+      ],
+      "validation": [
+        "All critical skills in scope install successfully.",
+        "Residual failures are narrowed to non-dependency causes with clear evidence."
+      ],
+      "risk": "Some skills may still fail due to upstream API/auth issues unrelated to dependencies.",
+      "mitigation": "Separate dependency-pass results from service-auth failures in final report.",
+      "confidence_score": 5,
+      "rationale": "High confidence in identifying dependency fixes; lower confidence on third-party service behavior."
+    },
+    {
+      "step": "Step 6 - Add rollback and maintenance guardrails",
+      "description": "Define how to safely roll back dependency changes and keep installs maintainable.",
+      "target_surfaces": [
+        "bootstrap.sh",
+        "version pins",
+        "operator runbook notes"
+      ],
+      "activities": [
+        "Keep previous bootstrap script as a timestamped backup before major edits.",
+        "Use explicit version pins and update cadence notes.",
+        "Define rollback action: disable/restore bootstrap and restart service."
+      ],
+      "validation": [
+        "Rollback procedure is documented and executable in one restart cycle."
+      ],
+      "risk": "Unpinned updates can silently break skill compatibility later.",
+      "mitigation": "Pin versions + require explicit validation when versions are bumped.",
+      "confidence_score": 6,
+      "rationale": "Operational process controls are clear and low risk when documented."
+    }
+  ],
+  "risks": [
+    {
+      "description": "Dependency URLs/releases can change or be removed.",
+      "mitigation": "Pin versions, maintain mirror/fallback URLs where possible, and record checksums."
+    },
+    {
+      "description": "Architecture-specific binaries may be incompatible with the deployed runtime.",
+      "mitigation": "Auto-detect architecture in bootstrap and use architecture-specific artifacts."
+    },
+    {
+      "description": "Service auth gaps can be mistaken for dependency failures.",
+      "mitigation": "Use separate validation checks for binary presence vs API credential validity."
+    },
+    {
+      "description": "Bootstrap script growth can increase startup complexity.",
+      "mitigation": "Keep installs modular, idempotent, and grouped by dependency class."
+    }
+  ],
+  "rollback_strategy": [
+    "Restore prior bootstrap script from backup and redeploy/restart service.",
+    "Temporarily disable non-critical dependency blocks to recover startup speed.",
+    "Re-run baseline dependency checks to confirm return to last known-good state."
+  ],
+  "overall_confidence": {
+    "score": 5,
+    "rationale": "Approach is operationally sound for Railway, but confidence is capped by partial integrations context and incomplete per-skill dependency inventory from current screenshot-only input."
+  },
+  "next_action_gate": {
+    "requires_approval": true,
+    "approval_criteria": [
+      "Dependency matrix (Step 1) reviewed and accepted.",
+      "Install strategy for Go/op/ffmpeg-like tools approved.",
+      "Validation checklist accepted before execution starts."
+    ]
+  }
+}

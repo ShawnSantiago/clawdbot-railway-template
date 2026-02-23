@@ -18,3 +18,6 @@
 - Treat terminal subtype `error_max_turns` as a hard non-approval state even when `is_error:false`; reviewers may exhaust turns before issuing a valid verdict.
 - For direct `claude -p` code-review runs, `--output-format json` avoids the `stream-json` + `--print` verbosity constraint and yields a stable artifact for audit parsing.
 - Manual signoff entries are more auditable when medium-risk findings are explicitly dispositioned inline and linked to the originating review artifact.
+- For Railway-hosted skill dependencies, treat `/data` as the only durable install target and avoid Homebrew-based instructions entirely.
+- For plan-review automation, a Claude `claude_unclassified_output` classification can still be resolved cleanly through Gemini fallback approval when the fallback matrix is enabled.
+- For dependency-heavy templates, split delivery into two layers: baseline shared binaries in the image, and pinned optional CLIs in `/data/workspace/bootstrap.sh` for persistent/operator-controlled expansion.
